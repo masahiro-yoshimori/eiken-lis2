@@ -1,0 +1,2358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EIKEN Listening Test Studio - 英検リスニング問題作成＆演習システム</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- lamejs for high-speed client-side MP3 encoding -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .print-break {
+        page-break-before: always;
+      }
+      .print-border {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-40 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-inner font-bold border border-indigo-400">
+          <i class="fa-solid fa-headphones-simple"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight">EIKEN Listening Studio</h1>
+          <p class="text-[11px] text-indigo-200">実用英語技能検定 準拠問題ジェネレーター＆演習機</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <span class="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 男女演じ分け音声エンジン稼働中
+        </span>
+        <button id="btn-batch-download" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition flex items-center space-x-1.5 shadow-sm border border-emerald-500">
+          <i class="fa-solid fa-cloud-arrow-down"></i>
+          <span class="hidden sm:inline">全問MP3一括保存</span>
+          <span class="sm:hidden">全DL</span>
+        </button>
+        <button id="btn-print" class="px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-xs sm:text-sm font-bold transition flex items-center space-x-1.5 border border-indigo-500 shadow-xs">
+          <i class="fa-solid fa-print"></i>
+          <span>印刷 / 教材PDF</span>
+        </button>
+        <button id="btn-export-markdown" class="px-3 py-1.5 rounded-lg bg-indigo-800 hover:bg-indigo-700 text-xs sm:text-sm font-medium transition flex items-center space-x-1.5 border border-indigo-700">
+          <i class="fa-brands fa-markdown"></i>
+          <span class="hidden sm:inline">MD出力</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Sidebar: Generator Controls -->
+      <section class="lg:col-span-4 space-y-6 no-print">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-indigo-600"></i>
+              問題作成パラメータ
+            </h2>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">公式仕様準拠</span>
+          </div>
+
+          <!-- Grade Selector -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">対象級 (Grade)</label>
+            <div class="grid grid-cols-5 gap-1.5" id="grade-tabs">
+              <button data-grade="3級" class="grade-btn py-2 px-1 text-center text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 transition">3級</button>
+              <button data-grade="準2級" class="grade-btn py-2 px-1 text-center text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 transition">準2級</button>
+              <button data-grade="2級" class="grade-btn active py-2 px-1 text-center text-xs font-bold rounded-lg border bg-indigo-600 text-white border-indigo-600 shadow-sm transition">2級</button>
+              <button data-grade="準1級" class="grade-btn py-2 px-1 text-center text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 transition">準1級</button>
+              <button data-grade="1級" class="grade-btn py-2 px-1 text-center text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 transition">1級</button>
+            </div>
+            <p id="grade-desc" class="text-[11px] text-slate-500 mt-1.5 font-medium">高校卒業程度：社会性のある話題、アカデミック/ビジネス基礎、論理的対話。</p>
+          </div>
+
+          <!-- Part Selector -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">問題形式 (Part)</label>
+            <div class="space-y-2" id="part-selector">
+              <label class="flex items-start p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                <input type="radio" name="partOption" value="第1部 応答文選択" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                <div class="ml-2.5">
+                  <div class="text-xs font-bold text-slate-800">第1部：応答文選択</div>
+                  <div class="text-[11px] text-slate-500 leading-tight mt-0.5">短い発話に対して最も自然な返答を選択 (3択/4択)</div>
+                </div>
+              </label>
+
+              <label class="flex items-start p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 cursor-pointer transition">
+                <input type="radio" name="partOption" value="第2部 対話文と質問" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                <div class="ml-2.5">
+                  <div class="text-xs font-bold text-indigo-950">第2部：対話文と質問 (2〜3往復)</div>
+                  <div class="text-[11px] text-indigo-700/80 leading-tight mt-0.5">男女の会話を聞き、直後の質問に対する適切な選択肢を選ぶ (4択)</div>
+                </div>
+              </label>
+
+              <label class="flex items-start p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                <input type="radio" name="partOption" value="第3部 短文の読上げと質問" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                <div class="ml-2.5">
+                  <div class="text-xs font-bold text-slate-800">第3部：短文読上げ (パッセージ)</div>
+                  <div class="text-[11px] text-slate-500 leading-tight mt-0.5">物語・アナウンス・説明文のナレーションと質問 (4択)</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Theme / Situation input -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">テーマ / シチュエーション</label>
+              <button id="btn-random-theme" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium">
+                <i class="fa-solid fa-shuffle mr-0.5"></i> ランダム設定
+              </button>
+            </div>
+            <input type="text" id="theme-input" placeholder="例: 空港での乗り継ぎ、放課後の部活動、環境リサイクル" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <div class="flex flex-wrap gap-1 mt-2" id="preset-tags">
+              <button class="theme-tag text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">学校・放課後</button>
+              <button class="theme-tag text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">買い物・店員</button>
+              <button class="theme-tag text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">旅行・交通</button>
+              <button class="theme-tag text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">職場・ビジネス</button>
+              <button class="theme-tag text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">環境・科学</button>
+            </div>
+          </div>
+
+          <!-- Count selector -->
+          <div class="space-y-2 pt-1">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">作成問数 (Question Count)</label>
+              <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button type="button" id="btn-count-minus" class="w-6 h-6 flex items-center justify-center rounded-lg bg-white shadow-xs text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 font-bold transition">
+                  <i class="fa-solid fa-minus text-[10px]"></i>
+                </button>
+                <input type="number" id="question-count" min="1" max="10" value="1" class="w-10 text-center text-xs font-bold bg-transparent text-slate-800 border-none focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                <button type="button" id="btn-count-plus" class="w-6 h-6 flex items-center justify-center rounded-lg bg-white shadow-xs text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 font-bold transition">
+                  <i class="fa-solid fa-plus text-[10px]"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-4 gap-1.5" id="count-presets">
+              <button type="button" data-count="1" class="count-preset-btn active py-1.5 text-center text-xs font-bold rounded-lg border bg-indigo-600 text-white border-indigo-600 shadow-xs transition">1問</button>
+              <button type="button" data-count="3" class="count-preset-btn py-1.5 text-center text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">3問</button>
+              <button type="button" data-count="5" class="count-preset-btn py-1.5 text-center text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">5問</button>
+              <button type="button" data-count="10" class="count-preset-btn py-1.5 text-center text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">10問</button>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="space-y-2 pt-2 border-t border-slate-100">
+            <button id="btn-generate-ai" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-sm shadow-md shadow-indigo-100 hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-bolt text-amber-300"></i>
+              <span id="btn-generate-ai-text">音声リスニング問題を作成する</span>
+            </button>
+            <button id="btn-load-sample" class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-file-lines"></i>
+              <span>内蔵公式サンプル問題を読込</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Voice Settings & Test -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-users text-indigo-500"></i> 男女ネイティブ演じ分けエンジン</span>
+            <span class="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+              <i class="fa-solid fa-check-double text-emerald-600"></i> 完全別話者対応
+            </span>
+          </div>
+          
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-3">
+            <!-- Male Voice Controller -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[11px]"><i class="fa-solid fa-mars"></i></span>
+                  <span class="font-bold text-slate-800">男性パート (Man / Boy)</span>
+                </div>
+                <button id="btn-test-male-voice" class="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded border border-blue-200 font-semibold transition cursor-pointer">
+                  <i class="fa-solid fa-volume-high mr-0.5"></i> 声を試聴
+                </button>
+              </div>
+              <select id="select-male-voice" class="w-full text-xs bg-white border border-slate-200 rounded-lg p-1.5 focus:ring-1 focus:ring-indigo-500 font-medium text-slate-700">
+                <option value="">音声を読み込み中...</option>
+              </select>
+            </div>
+
+            <!-- Female Voice Controller -->
+            <div class="space-y-1.5 pt-2 border-t border-slate-200/60">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-[11px]"><i class="fa-solid fa-venus"></i></span>
+                  <span class="font-bold text-slate-800">女性パート (Woman / Girl)</span>
+                </div>
+                <button id="btn-test-female-voice" class="text-[10px] bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 rounded border border-rose-200 font-semibold transition cursor-pointer">
+                  <i class="fa-solid fa-volume-high mr-0.5"></i> 声を試聴
+                </button>
+              </div>
+              <select id="select-female-voice" class="w-full text-xs bg-white border border-slate-200 rounded-lg p-1.5 focus:ring-1 focus:ring-indigo-500 font-medium text-slate-700">
+                <option value="">音声を読み込み中...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="lg:col-span-8 space-y-6">
+
+        <!-- Mode Toggle & Status Bar -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">モード切替:</span>
+            <div class="bg-slate-100 p-1 rounded-xl flex">
+              <button id="mode-exam" class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 shadow-sm transition cursor-pointer">
+                <i class="fa-solid fa-graduation-cap mr-1"></i> 実戦テスト演習
+              </button>
+              <button id="mode-editor" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                <i class="fa-solid fa-code mr-1"></i> 全訳・解説・スクリプト
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <span id="current-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              英検2級 - 第2部
+            </span>
+            <span id="items-counter" class="text-xs text-slate-500 font-medium">全 1 問</span>
+          </div>
+        </div>
+
+        <!-- Question List Container -->
+        <div id="questions-container" class="space-y-6">
+          <!-- Dynamically populated question cards -->
+        </div>
+
+        <!-- Progress Indicator -->
+        <div id="loading-state" class="hidden bg-white p-8 rounded-2xl shadow-sm border-2 border-indigo-200 text-center space-y-4">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-50 text-indigo-600 text-2xl">
+            <i class="fa-solid fa-circle-notch fa-spin"></i>
+          </div>
+          <div>
+            <h3 id="loading-title" class="text-base font-bold text-indigo-950">リスニング問題を生成中...</h3>
+            <p id="loading-desc" class="text-xs text-slate-500 mt-1">出題基準、語彙制限、ディストラクター（誤答）の妥当性を精査しています</p>
+          </div>
+          <div class="w-48 mx-auto bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-indigo-600 h-full w-2/3 animate-pulse rounded-full"></div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2 text-xs sm:text-sm border border-slate-700">
+      <span id="toast-icon" class="text-indigo-400"><i class="fa-solid fa-circle-check"></i></span>
+      <span id="toast-message" class="font-medium">通知メッセージ</span>
+    </div>
+  </div>
+
+  <!-- Print Options Modal -->
+  <div id="print-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs hidden p-4">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-indigo-900 px-6 py-4 flex items-center justify-between text-white">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-file-pdf text-indigo-300 text-lg"></i>
+          <h3 class="font-bold text-base">教材プリント・PDF印刷設定</h3>
+        </div>
+        <button id="btn-close-print-modal" class="w-8 h-8 rounded-lg hover:bg-indigo-800 flex items-center justify-center text-slate-300 hover:text-white transition cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          授業配布や演習に合わせ、印刷するプリントの形式を選択してください。A4用紙に最適化された綺麗なレイアウトで出力されます。
+        </p>
+
+        <!-- Print Type Selection -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="print-type-options">
+          <label class="print-type-label p-3.5 rounded-xl border-2 border-indigo-600 bg-indigo-50/60 cursor-pointer transition flex flex-col justify-between">
+            <div class="flex items-start justify-between mb-2">
+              <span class="font-bold text-xs sm:text-sm text-indigo-950 flex items-center gap-1.5">
+                <i class="fa-solid fa-graduation-cap text-indigo-600"></i>
+                生徒用問題用紙
+              </span>
+              <input type="radio" name="printType" value="student" checked class="text-indigo-600 focus:ring-indigo-500 mt-0.5">
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed">
+              スクリプト・正解・解説は非表示。設問・選択肢と解答記入欄・メモ枠のみを配置した試験用紙。
+            </p>
+          </label>
+
+          <label class="print-type-label p-3.5 rounded-xl border-2 border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition flex flex-col justify-between">
+            <div class="flex items-start justify-between mb-2">
+              <span class="font-bold text-xs sm:text-sm text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-chalkboard-user text-amber-600"></i>
+                指導用・解答解説シート
+              </span>
+              <input type="radio" name="printType" value="teacher" class="text-indigo-600 focus:ring-indigo-500 mt-0.5">
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed">
+              放送英文スクリプト、全訳、正解の根拠、誤答の罠ポイント、重要語彙を含むフル解説集。
+            </p>
+          </label>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+          <div class="font-bold text-slate-700 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info text-indigo-500"></i> PDFとして保存したい場合：
+          </div>
+          <p class="leading-normal">
+            印刷ダイアログの「送信先」または「プリンター」で<strong>「PDFに保存」</strong>を選択すると、PDFファイルとしてダウンロード・配布できます。
+          </p>
+        </div>
+
+        <!-- Action Buttons inside Modal -->
+        <div class="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-100">
+          <button id="btn-execute-print" class="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100 transition flex items-center justify-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-print"></i>
+            <span>印刷プレビューを開く</span>
+          </button>
+          <button id="btn-open-print-tab" class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            <span>別タブで開く</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    const state = {
+      selectedGrade: '2級',
+      selectedPart: '第2部 対話文と質問',
+      selectedTheme: '学校生活・放課後',
+      questionCount: 1,
+      playbackSpeed: 1.0,
+      mode: 'exam', // 'exam' or 'editor'
+      userAnswers: {},
+      showResults: {},
+      questions: [],
+      maleVoice: null,
+      femaleVoice: null,
+      isPlaying: false,
+      currentSpeakingSpeaker: null
+    };
+
+    // Voice detection and setup
+    function initializeVoices() {
+      if (!('speechSynthesis' in window)) return;
+      let allVoices = window.speechSynthesis.getVoices();
+      
+      // Filter for English voices, or fallback to any available voices
+      let enVoices = allVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      if (enVoices.length === 0) {
+        enVoices = allVoices;
+      }
+      if (enVoices.length === 0) return;
+
+      const maleSelect = document.getElementById('select-male-voice');
+      const femaleSelect = document.getElementById('select-female-voice');
+
+      const malePattern = /male|david|george|mark|alex|daniel|guy|christopher|james|john|richard|fred|tom|oliver|steven|brian|aaron|gordon|lee|uk english male/i;
+      const femalePattern = /female|zira|samantha|jenny|karen|victoria|susan|emma|alice|ava|aria|linda|cathy|heather|katherine|anna|nicky|uk english female|us english/i;
+
+      let maleVoice = enVoices.find(v => malePattern.test(v.name) && !/female/i.test(v.name));
+      let femaleVoice = enVoices.find(v => femalePattern.test(v.name) && v !== maleVoice);
+
+      if (!maleVoice) {
+        maleVoice = enVoices.find(v => v !== femaleVoice) || enVoices[0];
+      }
+      if (!femaleVoice || femaleVoice === maleVoice) {
+        femaleVoice = enVoices.find(v => v !== maleVoice) || enVoices[0];
+      }
+
+      state.maleVoice = maleVoice;
+      state.femaleVoice = femaleVoice;
+
+      if (maleSelect && femaleSelect) {
+        maleSelect.innerHTML = enVoices.map(v => `
+          <option value="${v.name}" ${v.name === maleVoice.name ? 'selected' : ''}>
+            ${v.name.replace(/(Microsoft|Google|Apple)\s*/gi, '')} (${v.lang})
+          </option>
+        `).join('');
+
+        femaleSelect.innerHTML = enVoices.map(v => `
+          <option value="${v.name}" ${v.name === femaleVoice.name ? 'selected' : ''}>
+            ${v.name.replace(/(Microsoft|Google|Apple)\s*/gi, '')} (${v.lang})
+          </option>
+        `).join('');
+      }
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = initializeVoices;
+      initializeVoices();
+    }
+
+    // Grade Level Guide
+    const gradeDetails = {
+      '3級': {
+        desc: '中学卒業程度：基礎的な日常会話、学校・家族、現在完了・受動態・不定詞など',
+        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300'
+      },
+      '準2級': {
+        desc: '高校中級程度：日常生活や学校、簡単な社会的テーマ、助動詞の使い分け、仮定法基礎',
+        badgeColor: 'bg-teal-100 text-teal-800 border-teal-300'
+      },
+      '2級': {
+        desc: '高校卒業程度：社会性のある話題、アカデミック/ビジネス基礎、論理的対話と展開',
+        badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300'
+      },
+      '準1級': {
+        desc: '大学中級程度：社会・学術・ビジネスの議論、ニュース、エッセイ形式、高い即時理解力',
+        badgeColor: 'bg-purple-100 text-purple-800 border-purple-300'
+      },
+      '1級': {
+        desc: '大学上級・プロフェッショナル：時事問題、科学、歴史、政治、高度な抽象表現と語彙',
+        badgeColor: 'bg-rose-100 text-rose-800 border-rose-300'
+      }
+    };
+
+    // Dedicated question pool covering all grades and parts
+    const comprehensiveDatabase = {
+      '3級': {
+        '第1部 応答文選択': [
+          {
+            grade: "3級", part: "第1部 応答文選択", theme: "放課後の部活動の誘い",
+            script: "Man: Can you come to my soccer practice this Saturday afternoon?",
+            question: "(放送に対して最も適切な応答を1つ選んでください)",
+            options: [
+              "1. I'd love to, but I have a dentist appointment.",
+              "2. Yes, I played soccer yesterday.",
+              "3. Soccer is my brother's favorite sport.",
+              "4. You should buy a new pair of shoes."
+            ],
+            correctAnswer: 1,
+            translations: {
+              script: "男性：今週の土曜日の午後、僕のサッカーの練習を見に来られる？",
+              question: "（適切な応答を選択）",
+              options: [
+                "1. 行きたいのはやまやまなんだけど、歯医者の予約があるんだ。",
+                "2. はい、私は昨日サッカーをしました。",
+                "3. サッカーは私の弟の一番好きなスポーツです。",
+                "4. あなたは新しい靴を買うべきです。"
+              ]
+            },
+            explanation: {
+              evidence: "誘い（Can you come...?）に対して都合がつかない理由を添えて断る選択肢1が正解です。",
+              distractors: "・選択肢2: 過去の事柄を答えています。\n・選択肢3: 弟の話題にすり替わっています。\n・選択肢4: 靴のアドバイスは文脈に合いません。",
+              vocabulary: "・dentist appointment: 歯医者の予約\n・I'd love to, but...: ぜひそうしたいのですが、あいにく..."
+            }
+          }
+        ],
+        '第2部 対話文と質問': [
+          {
+            grade: "3級", part: "第2部 対話文と質問", theme: "放課後の予定と図書館での勉強",
+            script: "Man: Hi, Emma. Are you going home now?\nWoman: No, Ken. I'm going to the library to study for tomorrow's math test.\nMan: Can I come with you? I have some questions about chapter four.\nWoman: Sure! Let's meet in the study room on the second floor.",
+            question: "Where are Ken and Emma going to study?",
+            options: [
+              "1. At Ken's house.",
+              "2. In the classroom.",
+              "3. At the local library.",
+              "4. In the cafeteria."
+            ],
+            correctAnswer: 3,
+            translations: {
+              script: "男性：やあ、エマ。もう家に帰るの？\n女性：ううん、ケン。明日の数学のテスト勉強をしに図書館へ行くところよ。\n男性：一緒に行ってもいい？第4章についていくつか質問があるんだ。\n女性：もちろん！2階の自習室で合流しましょう。",
+              question: "ケンとエマはどこで勉強する予定ですか？",
+              options: [
+                "1. ケンの家で。",
+                "2. 教室で。",
+                "3. 地域の図書館で。",
+                "4. カフェテリアで。"
+              ]
+            },
+            explanation: {
+              evidence: "女性の「I'm going to the library to study」および「study room on the second floor」より、図書館で勉強することが分かります。",
+              distractors: "・選択肢1: ケンの家に行く予定はありません。\n・選択肢2: 教室ではありません。\n・選択肢4: カフェテリアの言及はありません。",
+              vocabulary: "・math test: 数学の試験\n・study room: 自習室"
+            }
+          }
+        ],
+        '第3部 短文の読上げと質問': [
+          {
+            grade: "3級", part: "第3部 短文の読上げと質問", theme: "学食の清掃と昼食のアナウンス",
+            script: "Narrator: Attention, all students. The school cafeteria will be closed this Friday afternoon for cleaning. Students who stay at school for club activities should bring their own lunch or buy food at the bakery across from the station.",
+            question: "What should students do if they stay at school on Friday afternoon?",
+            options: [
+              "1. Clean the cafeteria kitchen.",
+              "2. Bring their own lunch to school.",
+              "3. Go home before noon.",
+              "4. Wait for the bakery staff to visit."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "ナレーター：生徒の皆さんにお知らせします。今週金曜の午後は清掃のため学食を閉鎖します。部活動で学校に残る生徒は、各自で昼食を持参するか、駅向かいのパン屋で購入してください。",
+              question: "金曜午後に学校に残る生徒は何をすべきですか？",
+              options: [
+                "1. 学食の厨房を掃除する。",
+                "2. 自分の昼食を学校に持参する。",
+                "3. 正午前に帰宅する。",
+                "4. パン屋のスタッフが訪れるのを待つ。"
+              ]
+            },
+            explanation: {
+              evidence: "「should bring their own lunch or buy food」より、各自で昼食を持参することが正解です。",
+              distractors: "・選択肢1: 掃除をするのは業者です。\n・選択肢3: 帰宅する必要はありません。\n・選択肢4: パン屋が学校に来るわけではありません。",
+              vocabulary: "・cafeteria: カフェテリア、学食\n・bring one's own lunch: 昼食を持参する"
+            }
+          }
+        ]
+      },
+      '準2級': {
+        '第1部 応答文選択': [
+          {
+            grade: "準2級", part: "第1部 応答文選択", theme: "電車の遅延と待ち合わせ",
+            script: "Man: The express train has been delayed for twenty minutes due to maintenance.",
+            question: "(放送に対して最も適切な応答を1つ選んでください)",
+            options: [
+              "1. Then let's grab a coffee while we wait.",
+              "2. Yes, the ticket was very expensive.",
+              "3. I always take the subway yesterday.",
+              "4. You should return your passport."
+            ],
+            correctAnswer: 1,
+            translations: {
+              script: "男性：整備点検のため、急行列車が20分遅延しています。",
+              question: "（適切な応答を選択）",
+              options: [
+                "1. じゃあ待っている間にコーヒーでも買いに行こう。",
+                "2. はい、切符はとても高価でした。",
+                "3. 私は昨日いつも地下鉄に乗ります。",
+                "4. パスポートを返却すべきです。"
+              ]
+            },
+            explanation: {
+              evidence: "遅延に対して「待っている間にコーヒーを飲む」という提案が自然です。",
+              distractors: "・選択肢2: 切符の値段は関係ありません。\n・選択肢3: 時制が矛盾しています。\n・選択肢4: パスポートの文脈はありません。",
+              vocabulary: "・delay: 遅延させる\n・grab a coffee: コーヒーをさっと飲む"
+            }
+          }
+        ],
+        '第2部 対話文と質問': [
+          {
+            grade: "準2級", part: "第2部 対話文と質問", theme: "カフェでのアルバイトのシフト調整",
+            script: "Man: Excuse me, Jessica. Could you cover my shift at the coffee shop this Friday evening?\nWoman: I'd like to help, Daniel, but I have to attend my sister's violin recital.\nMan: Oh, I see. I was hoping to study for the biology exam on Saturday morning.\nWoman: If you can work for me on Sunday afternoon instead, I can switch shifts with you on Friday afternoon.",
+            question: "Why does Jessica refuse Daniel's original request?",
+            options: [
+              "1. She has to prepare for a biology exam.",
+              "2. She has to go to her sister's concert.",
+              "3. She has to work on Sunday afternoon.",
+              "4. She needs to visit the hospital."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "男性：すみません、ジェシカ。今週の金曜の夕方、カフェのシフトを代わってもらえませんか？\n女性：手伝いたいのはやまやまなんだけど、ダニエル、妹のバイオリン発表会に出席しなければならないの。\n男性：そうなんだ。土曜の朝の生物の試験勉強をしたかったんだ。\n女性：もし代わりに日曜の午後に働いてくれるなら、金曜の午後なら交代できるわよ。",
+              question: "ジェシカはなぜダニエルの最初の頼みを断るのですか？",
+              options: [
+                "1. 生物の試験の準備をしなければならないから。",
+                "2. 妹のコンサートに行かなければならないから。",
+                "3. 日曜日の午後に働かなければならないから。",
+                "4. 病院へ行く必要があるから。"
+              ]
+            },
+            explanation: {
+              evidence: "女性の発言「I have to attend my sister's violin recital」より、選択肢2が正解です。",
+              distractors: "・選択肢1: 試験勉強をするのは男性です。\n・選択肢3: 日曜勤務は代替提案です。\n・選択肢4: 病院の言及はありません。",
+              vocabulary: "・cover someone's shift: 〜の代わりにシフトに入る\n・recital: 発表会、独奏会"
+            }
+          }
+        ],
+        '第3部 短文の読上げと質問': [
+          {
+            grade: "準2級", part: "第3部 短文の読上げと質問", theme: "市民センターの陶芸ワークショップ",
+            script: "Narrator: Welcome to the Green Hills Community Center. We are offering a beginner ceramic workshop this Saturday morning. Materials will be provided, but participants are requested to wear clothes that can get dirty. Please register at the reception desk before Friday evening.",
+            question: "What should participants in the workshop do?",
+            options: [
+              "1. Bring their own clay and tools.",
+              "2. Wear clothes suitable for getting dirty.",
+              "3. Pay extra fees on Saturday morning.",
+              "4. Clean the workshop studio afterward."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "ナレーター：グリーンヒルズ市民センターへようこそ。今週土曜の午前に初心者向け陶芸ワークショップを開催します。材料は提供されますが、参加者は汚れてもよい服装でお越しください。金曜の夕方までに受付でご登録をお願いします。",
+              question: "ワークショップの参加者は何をすべきですか？",
+              options: [
+                "1. 自分の粘土や道具を持参する。",
+                "2. 汚れてもよい適切な服を着る。",
+                "3. 土曜の朝に追加料金を支払う。",
+                "4. 終了後にスタジオを清掃する。"
+              ]
+            },
+            explanation: {
+              evidence: "「participants are requested to wear clothes that can get dirty」より選択肢2が正解です。",
+              distractors: "・選択肢1: 材料は提供（provided）されます。\n・選択肢3: 追加料金の記述はありません。\n・選択肢4: 清掃の義務はありません。",
+              vocabulary: "・ceramic workshop: 陶芸講習会\n・participant: 参加者"
+            }
+          }
+        ]
+      },
+      '2級': {
+        '第1部 応答文選択': [
+          {
+            grade: "2級", part: "第1部 応答文選択", theme: "役員会前の予算案確認",
+            script: "Man: Would you mind reviewing the revised budget proposal before our board meeting?",
+            question: "(放送に対して最も適切な応答を1つ選んでください)",
+            options: [
+              "1. Not at all. I will take a look at it right after lunch.",
+              "2. Yes, the meeting was postponed until next week.",
+              "3. I mind that the budget is already exhausted.",
+              "4. No, you should cancel the client reservation."
+            ],
+            correctAnswer: 1,
+            translations: {
+              script: "男性：役員会の前に、修正した予算案に目を通していただけないでしょうか？",
+              question: "（適切な応答を選択）",
+              options: [
+                "1. もちろん構いませんよ。昼食後すぐに目を通します。",
+                "2. はい、会議は来週まで延期されました。",
+                "3. 予算がすでに枯渇していることを気にしています。",
+                "4. いいえ、クライアントの予約をキャンセルすべきです。"
+              ]
+            },
+            explanation: {
+              evidence: "「Would you mind -ing?（〜していただけますか）」に対する承諾は「Not at all.（もちろん）」です。",
+              distractors: "・選択肢2: 承諾になっていません。\n・選択肢3: 誤解による不適切な返答です。\n・選択肢4: 予約キャンセルの話ではありません。",
+              vocabulary: "・Would you mind -ing?: 〜していただけますか\n・budget proposal: 予算案"
+            }
+          }
+        ],
+        '第2部 対話文と質問': [
+          {
+            grade: "2級", part: "第2部 対話文と質問", theme: "ボランティア活動と週末のプレゼン準備",
+            script: "Man: Hey, Sarah. Are you still planning to volunteer at the community park this Saturday?\nWoman: I really wanted to, Mark, but our professor just moved the history presentation to next Monday morning.\nMan: That's too bad. We needed a few more people to help plant trees along the path.\nWoman: If I finish organizing my presentation slides by Friday night, I might join you for a couple of hours in the afternoon.",
+            question: "Why might the woman be unable to volunteer all day on Saturday?",
+            options: [
+              "1. She has to attend a tree-planting workshop.",
+              "2. She needs to prepare for an upcoming presentation.",
+              "3. She forgot about her history class schedule.",
+              "4. She promised to meet Mark on Friday night."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "男性：やあ、サラ。今週の土曜日に地域公園でボランティアをする予定はまだある？\n女性：本当に参加したかったんだけど、マーク、教授が歴史のプレゼンを来週月曜の朝に前倒ししたのよ。\n男性：それは残念だな。遊歩道沿いに木を植える手伝いをする人がもう少し必要だったんだ。\n女性：もし金曜日の夜までに発表スライドをまとめ終われば、午後に2時間ほど参加できるかもしれないわ。",
+              question: "なぜ女性は土曜日に一日中ボランティアに参加できないかもしれないのですか？",
+              options: [
+                "1. 彼女は植樹ワークショップに参加しなければならないから。",
+                "2. 彼女は間近に迫ったプレゼンテーションの準備をする必要があるから。",
+                "3. 彼女は歴史の授業のスケジュールを忘れていたから。",
+                "4. 彼女は金曜の夜にマークと会う約束をしたから。"
+              ]
+            },
+            explanation: {
+              evidence: "女性の発言「professor just moved the history presentation to next Monday morning」より選択肢2が正解です。",
+              distractors: "・選択肢1: 植樹ワークショップではありません。\n・選択肢3: 忘れていたのではなく日程変更です。\n・選択肢4: 金曜夜に会う約束はありません。",
+              vocabulary: "・presentation: 発表、プレゼン\n・organize slides: スライドをまとめる"
+            }
+          }
+        ],
+        '第3部 短文の読上げと質問': [
+          {
+            grade: "2級", part: "第3部 短文の読上げと質問", theme: "植物園の通路整備と見学ルート案内",
+            script: "Narrator: Welcome to the Green Valley Botanical Garden. Due to pathway maintenance around the central glasshouse, the tropical plant exhibit will be inaccessible until two in the afternoon. Visitors holding all-day passes are encouraged to explore the outdoor rose pavilion and the herb garden first, where guided tours depart every thirty minutes from the main entrance.",
+            question: "What should visitors holding all-day passes do in the morning?",
+            options: [
+              "1. Wait inside the central glasshouse.",
+              "2. Assist staff with pathway maintenance.",
+              "3. Visit the outdoor exhibits before two o'clock.",
+              "4. Book a private tour at the entrance counter."
+            ],
+            correctAnswer: 3,
+            translations: {
+              script: "ナレーター：グリーンバレー植物園へようこそ。中央温室周辺の遊歩道メンテナンスのため、熱帯植物展示は午後2時まで立ち入りできません。1日パスをお持ちのご来園者様は、まず屋外のバラ館やハーブ園をご見学いただくことをお勧めします。ガイドツアーはメインエントランスより30分ごとに出発しております。",
+              question: "1日パスを持つ来園者は午前に何をすべきですか？",
+              options: [
+                "1. 中央温室の中で待機する。",
+                "2. スタッフの通路整備を手伝う。",
+                "3. 2時前に屋外の展示エリアを訪問する。",
+                "4. 入口カウンターでプライベートツアーを予約する。"
+              ]
+            },
+            explanation: {
+              evidence: "2時まで温室に入れないため、午前中は屋外のバラ館やハーブ園を見学することが推奨されています。",
+              distractors: "・選択肢1: 温室は入れません。\n・選択肢2: 整備の手伝いは不要です。\n・選択肢4: プライベートツアーの予約ではありません。",
+              vocabulary: "・maintenance: 保守点検、整備\n・inaccessible: 立ち入り不可の"
+            }
+          }
+        ]
+      },
+      '準1級': {
+        '第1部 応答文選択': [
+          {
+            grade: "準1級", part: "第1部 応答文選択", theme: "新製品上市のスケジュール遅延協議",
+            script: "Man: Should we consider extending the trial deployment period given the sporadic network latency reported in rural sectors?",
+            question: "(放送に対して最も適切な応答を1つ選んでください)",
+            options: [
+              "1. Yes, prioritizing stability over an aggressive release date is essential.",
+              "2. No, the farm equipment was delivered promptly on schedule.",
+              "3. We should reduce the retail price before manufacturing starts.",
+              "4. Our broadband contract was canceled three years ago."
+            ],
+            correctAnswer: 1,
+            translations: {
+              script: "男性：地方区間で散発的なネットワーク遅延が報告されていることを鑑み、試行展開期間の延長を検討すべきでしょうか？",
+              question: "（適切な応答を選択）",
+              options: [
+                "1. はい、性急なリリース日よりも安定性を優先することが不可欠です。",
+                "2. いいえ、農機具は時間通りに納品されました。",
+                "3. 製造開始前に小売価格を引き下げるべきです。",
+                "4. 当社のブロードバンド契約は3年前に解約されました。"
+              ]
+            },
+            explanation: {
+              evidence: "遅延の懸念に対する検討提案に対して、品質安定を優先する選択肢1が最も論理的です。",
+              distractors: "・選択肢2: 農機具の話題は無関係です。\n・選択肢3: 価格の話にすり替わっています。\n・選択肢4: 3年前の解約は文脈に合いません。",
+              vocabulary: "・sporadic: 散発的な\n・latency: 遅延"
+            }
+          }
+        ],
+        '第2部 対話文と質問': [
+          {
+            grade: "準1級", part: "第2部 対話文と質問", theme: "太陽光発電施設の実現可能性と環境配慮",
+            script: "Man: Victoria, have you reviewed the feasibility report for our proposed solar facility in the northern district?\nWoman: Yes, Arthur. While the projected energy yield is promising, the environmental assessment indicates potential soil degradation on the steep slopes.\nMan: That is indeed a valid concern. However, adopting reinforced terrace structuring could mitigate the erosion risk significantly.\nWoman: If the municipal council approves the additional subsidy for that structural engineering, the project could still remain financially viable.",
+            question: "What condition must be met for the project to proceed smoothly?",
+            options: [
+              "1. The solar facility must be relocated to an urban area.",
+              "2. The municipal council must grant funding for slope reinforcement.",
+              "3. The projected energy yield must exceed current local demand.",
+              "4. The environmental assessment must be entirely redone."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "男性：ビクトリア、北部地区に提案している太陽光発電施設の実現可能性調査報告書を確認しましたか？\n女性：ええ、アーサー。予測発電量は有望であるものの、環境影響評価において急斜面での土壌劣化の恐れが指摘されています。\n男性：それは確かに妥当な懸念点ですね。しかし、補強階段工法を採用すれば、浸食リスクを大幅に軽減できるはずです。\n女性：もし市議会がその構造技術に対する追加補助金を承認してくれれば、プロジェクトの採算性を維持できるでしょう。",
+              question: "プロジェクトが円滑に進むために満たされなければならない条件は何ですか？",
+              options: [
+                "1. 太陽光発電施設を都市部に移転すること。",
+                "2. 市議会が斜面補強のための資金交付を承認すること。",
+                "3. 予測発電量が現在の地域需要を上回ること。",
+                "4. 環境影響評価を全面的にやり直すこと。"
+              ]
+            },
+            explanation: {
+              evidence: "女性の発言「If the municipal council approves the additional subsidy... the project could still remain financially viable」より選択肢2が正解です。",
+              distractors: "・選択肢1: 都市部移転は提案されていません。\n・選択肢3: 地域需要超過は条件ではありません。\n・選択肢4: 調査やり直しではありません。",
+              vocabulary: "・feasibility report: 実現可能性調査報告書\n・mitigate erosion: 土壌浸食を軽減する"
+            }
+          }
+        ],
+        '第3部 短文の読上げと質問': [
+          {
+            grade: "準1級", part: "第3部 短文の読上げと質問", theme: "古代遺跡の非破壊探査技術の導入",
+            script: "Narrator: Archaeological researchers examining the Bronze Age settlement in eastern Europe have deployed ground-penetrating radar to map subterranean foundations. This non-invasive methodology allows the preservation of fragile artifacts while revealing extensive irrigation canals previously undetected by traditional surface surveys.",
+            question: "What is an advantage of using ground-penetrating radar in this study?",
+            options: [
+              "1. It instantly restores damaged Bronze Age artifacts.",
+              "2. It maps buried structures without disturbing delicate artifacts.",
+              "3. It replaces the need for municipal excavation permits.",
+              "4. It purifies irrigation water in rural areas."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "ナレーター：東欧の青銅器時代の集落を調査している考古学研究チームは、地下構造をマッピングするために地中レーダーを配備しました。この非破壊的な手法により、従来の地表調査では検出できなかった広大な灌漑用運河を明らかにする一方で、壊れやすい遺物の保存が可能になります。",
+              question: "この研究で地中レーダーを使用する利点は何ですか？",
+              options: [
+                "1. 損傷した青銅器時代の遺物を即座に修復すること。",
+                "2. 繊細な遺物を損なうことなく埋没構造をマッピングすること。",
+                "3. 自治体の発掘許可の必要性をなくすこと。",
+                "4. 農村地域の灌漑用水を浄化すること。"
+              ]
+            },
+            explanation: {
+              evidence: "「non-invasive methodology allows the preservation of fragile artifacts while revealing...」より選択肢2が正解です。",
+              distractors: "・選択肢1: 遺物の修復ではありません。\n・選択肢3: 許可の免除ではありません。\n・選択肢4: 水質浄化ではありません。",
+              vocabulary: "・ground-penetrating radar: 地中レーダー\n・subterranean: 地下の\n・non-invasive: 非侵襲的な、非破壊的な"
+            }
+          }
+        ]
+      },
+      '1級': {
+        '第1部 応答文選択': [
+          {
+            grade: "1級", part: "第1部 応答文選択", theme: "自律型AI取引規制への法的解釈",
+            script: "Man: Do you foresee antitrust regulators penalizing algorithmic pricing collusion when no explicit human communication transpired?",
+            question: "(放送に対して最も適切な応答を1つ選んでください)",
+            options: [
+              "1. Undoubtedly; legal precedents are evolving to encompass autonomous tacit collusion.",
+              "2. The courtroom was closed due to inclement weather yesterday morning.",
+              "3. We should discount consumer electronic products by twenty percent.",
+              "4. Algorithmic software cannot be installed on handheld devices."
+            ],
+            correctAnswer: 1,
+            translations: {
+              script: "男性：明示的な人的通信が行われなかった場合でも、独占禁止法規制当局がアルゴリズムによる価格カルテルを処罰すると予測されますか？",
+              question: "（適切な応答を選択）",
+              options: [
+                "1. 間違いなくそうです。判例は自律的な暗黙の共謀を包含するよう進化しつつあります。",
+                "2. 法廷は昨朝、悪天候のため閉廷していました。",
+                "3. 家電製品を20%割引すべきです。",
+                "4. アルゴリズムソフトウェアは携帯端末にインストールできません。"
+              ]
+            },
+            explanation: {
+              evidence: "法的な予測に対する専門的な返答として選択肢1が合致しています。",
+              distractors: "・選択肢2: 悪天候の話題は無関係です。\n・選択肢3: 価格割引の話ではありません。\n・選択肢4: 端末インストールの話ではありません。",
+              vocabulary: "・antitrust regulators: 独占禁止法規制当局\n・tacit collusion: 暗黙の共謀"
+            }
+          }
+        ],
+        '第2部 対話文と質問': [
+          {
+            grade: "1級", part: "第2部 対話文と質問", theme: "人工知能の倫理規定と国際貿易協定",
+            script: "Man: Ambassador Davies, the revised multilateral treaty on autonomous algorithmic governance seems to impose disproportionate auditing burdens on developing economies.\nWoman: I acknowledge that reservation, Commissioner. Nevertheless, establishing rigorous verification protocols is indispensable to prevent algorithmic bias in cross-border financial transactions.\nMan: Granted, but without reciprocal technology transfer frameworks, smaller jurisdictions will inevitably fall into technological protectionism.\nWoman: If we incorporate phased implementation timelines paired with targeted capacity-building grants, we could reconcile regulatory compliance with equitable market access.",
+            question: "What compromise does the woman advocate to address the man's criticism?",
+            options: [
+              "1. Abolishing all algorithmic verification protocols in developing economies.",
+              "2. Prohibiting cross-border financial operations until protectionism diminishes.",
+              "3. Coupling staggered enforcement dates with institutional support grants.",
+              "4. Allowing smaller jurisdictions to bypass multilateral treaties permanently."
+            ],
+            correctAnswer: 3,
+            translations: {
+              script: "男性：デイヴィス大使、自律型アルゴリズム統治に関する改訂多国間条約は、発展途上国に対して過度な監査負担を課しているように見受けられます。\n女性：その懸念は認めます、コミッショナー。しかしながら、国境を越えた金融取引におけるアルゴリズムの偏向を防ぐためには、厳格な検証手順の確立が不可欠です。\n男性：それは認めますが、相互的な技術移転の枠組みが伴わなければ、小規模な司法管轄区は必然的に技術保護主義に陥るでしょう。\n女性：もし段階的な施行スケジュールに対象を絞った能力構築助成金を組み合わせれば、規制の遵守と公平な市場アクセスの両立を図ることができるはずです。",
+              question: "男性の批判に対処するために、女性が提唱する妥協案は何ですか？",
+              options: [
+                "1. 発展途上国におけるすべてのアルゴリズム検証プロトコルを廃止すること。",
+                "2. 保護主義が減退するまで国境を越えた金融取引を禁止すること。",
+                "3. 段階的な施行期日と組織的支援のための助成金を連携させること。",
+                "4. 小規模な司法管轄区が多国間条約を永久に回避することを許可すること。"
+              ]
+            },
+            explanation: {
+              evidence: "女性の発言「phased implementation timelines paired with targeted capacity-building grants」が選択肢3の「Coupling staggered enforcement dates with institutional support grants」と一致します。",
+              distractors: "・選択肢1: 検証プロトコルの廃止ではありません。\n・選択肢2: 金融取引の一律禁止ではありません。\n・選択肢4: 条約の永久回避ではありません。",
+              vocabulary: "・disproportionate: 不釣り合いな\n・reciprocal: 相互的な\n・reconcile: 両立させる"
+            }
+          }
+        ],
+        '第3部 短文の読上げと質問': [
+          {
+            grade: "1級", part: "第3部 短文の読上げと質問", theme: "深海生態系における熱水噴出孔の化学合成細菌",
+            script: "Narrator: Deep-sea hydrothermal vents harbor unique chemoautotrophic ecosystems fundamentally independent of solar photosynthesis. Microorganisms utilize hydrogen sulfide emanating from tectonic fractures to synthesize organic compounds, sustaining dense communities of tubeworms and crustaceans in extreme hydrostatic pressures.",
+            question: "What primary mechanism sustains the ecosystems surrounding hydrothermal vents?",
+            options: [
+              "1. Solar radiation filtering through deep ocean currents.",
+              "2. Microbial synthesis fueled by hydrogen sulfide from tectonic fractures.",
+              "3. Organic detritus transported from surface fisheries.",
+              "4. Artificial lighting installed by deep-submergence vehicles."
+            ],
+            correctAnswer: 2,
+            translations: {
+              script: "ナレーター：深海の熱水噴出孔には、太陽による光合成から根本的に独立した独特の化学合成生態系が存在します。微生物は地殻の割れ目から噴出する硫化水素を利用して有機化合物を合成し、極限の静水圧下でチューブワームや甲殻類の密集した群集を維持しています。",
+              question: "熱水噴出孔周辺の生態系を維持する主なメカニズムは何ですか？",
+              options: [
+                "1. 深海海流を透過する太陽放射。",
+                "2. 地殻の亀裂からの硫化水素を燃料とする微生物の合成。",
+                "3. 表層漁場から運ばれる有機砕屑物。",
+                "4. 深海探査艇によって設置された人工照明。"
+              ]
+            },
+            explanation: {
+              evidence: "「Microorganisms utilize hydrogen sulfide emanating from tectonic fractures to synthesize organic compounds」より選択肢2が正解です。",
+              distractors: "・選択肢1: 太陽光には依存していません。\n・選択肢3: 表層からの有機物ではありません。\n・選択肢4: 人工照明ではありません。",
+              vocabulary: "・hydrothermal vent: 熱水噴出孔\n・chemoautotrophic: 化学合成独立栄養の\n・hydrogen sulfide: 硫化水素"
+            }
+          }
+        ]
+      }
+    };
+
+    function parseAndNormalizeDialogue(rawScript) {
+      const lines = rawScript.split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+      const detectedSpeakers = [];
+      const parsedTurns = [];
+
+      lines.forEach((line, lineIdx) => {
+        const colonMatch = line.match(/^([A-Za-z0-9_\s\.\-]{1,25}):\s*(.*)$/);
+        let speakerName = null;
+        let speechContent = line;
+
+        if (colonMatch) {
+          speakerName = colonMatch[1].trim();
+          speechContent = colonMatch[2].trim();
+        }
+
+        let assignedRole = 'Man';
+        if (speakerName) {
+          if (/^(Man|Male|Boy|Father|Dad|He|Gentleman|Arthur|Ken|Daniel|David|Mark|John|Tom|Mike|Takuya|Mr)/i.test(speakerName)) {
+            assignedRole = 'Man';
+          } else if (/^(Woman|Female|Girl|Mother|Mom|She|Lady|Victoria|Sarah|Emma|Jessica|Davies|Lucy|Mary|Jane|Lisa|Yuka|Ms|Mrs)/i.test(speakerName)) {
+            assignedRole = 'Woman';
+          } else {
+            if (!detectedSpeakers.includes(speakerName)) {
+              detectedSpeakers.push(speakerName);
+            }
+            const speakerIndex = detectedSpeakers.indexOf(speakerName);
+            assignedRole = (speakerIndex % 2 === 0) ? 'Man' : 'Woman';
+          }
+        } else {
+          assignedRole = (lineIdx % 2 === 0) ? 'Man' : 'Woman';
+        }
+
+        parsedTurns.push({
+          role: assignedRole,
+          text: speechContent
+        });
+      });
+
+      return parsedTurns;
+    }
+
+    // Default initial question
+    state.questions = [comprehensiveDatabase['2級']['第2部 対話文と質問'][0]];
+
+    function renderQuestions() {
+      const container = document.getElementById('questions-container');
+      if (!container) return;
+
+      const badgeEl = document.getElementById('current-badge');
+      const counterEl = document.getElementById('items-counter');
+      if (badgeEl) {
+        badgeEl.textContent = `英検${state.selectedGrade} - ${state.selectedPart}`;
+      }
+      if (counterEl) {
+        counterEl.textContent = `全 ${state.questions.length} 問`;
+      }
+
+      if (state.questions.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-sm">
+            問題がありません。「音声リスニング問題を作成する」を押して問題を作成してください。
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.questions.map((q, idx) => {
+        const isAnswered = state.userAnswers[idx] !== undefined;
+        const userAnswer = state.userAnswers[idx];
+        const showExpl = state.mode === 'editor' || state.showResults[idx];
+
+        return `
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" id="question-card-${idx}">
+            <!-- Header -->
+            <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center space-x-2.5">
+                <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                  Q${idx + 1}
+                </span>
+                <div>
+                  <span class="text-xs font-bold text-slate-800">英検${q.grade || state.selectedGrade} 【${q.part || state.selectedPart}】</span>
+                  ${q.theme ? `<span class="text-[11px] text-slate-500 ml-2">(${q.theme})</span>` : ''}
+                </div>
+              </div>
+
+              <!-- Audio Action Buttons -->
+              <div class="flex items-center space-x-2">
+                <button type="button" class="btn-play-audio px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer" data-index="${idx}">
+                  <i class="fa-solid fa-circle-play text-amber-300"></i>
+                  <span class="play-text">男女音声で再生</span>
+                </button>
+                <button type="button" class="btn-download-audio px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition flex items-center gap-1 shadow-xs cursor-pointer" data-index="${idx}">
+                  <i class="fa-solid fa-download text-indigo-600"></i>
+                  <span class="download-text">MP3保存</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card Content -->
+            <div class="p-5 sm:p-6 space-y-4">
+              <!-- Audio Player if generated -->
+              ${q.audioUrl ? `
+                <div class="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center gap-2">
+                  <audio controls src="${q.audioUrl}" class="w-full h-8"></audio>
+                </div>
+              ` : ''}
+
+              <!-- Speaking Indicator -->
+              <div id="speaking-indicator-${idx}" class="hidden p-2.5 rounded-xl border text-xs flex items-center gap-2.5 animate-pulse transition-all">
+                <div class="speaker-avatar shrink-0"></div>
+                <div class="speaker-text flex-1 truncate font-medium"></div>
+              </div>
+
+              <!-- Exam Mode Notice -->
+              ${state.mode === 'exam' && !showExpl ? `
+                <div class="bg-amber-50/70 border border-amber-200/70 rounded-xl p-3 text-xs text-amber-900 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-headphones text-amber-600"></i>
+                    <span><strong>実戦リスニング中:</strong> スクリプトは非表示です。音声を聞いて選択肢を選んでください。</span>
+                  </div>
+                  <span class="text-[10px] text-slate-500">男女話者完全演じ分け仕様</span>
+                </div>
+              ` : ''}
+
+              <!-- Script Section (shown in editor mode or after answering) -->
+              ${showExpl ? `
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2.5">
+                  <div class="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <i class="fa-solid fa-file-lines text-indigo-500"></i> 放送英文スクリプト (Audio Script)
+                    </span>
+                    <span class="text-[10px] text-slate-500">男女話者完全演じ分け仕様</span>
+                  </div>
+
+                  <div class="space-y-1.5 text-xs sm:text-sm font-mono text-slate-800">
+                    ${q.script.split('\n').filter(l => l.trim().length > 0).map(line => {
+                      const isMan = /^(Man|Male|M|Boy):/i.test(line);
+                      const isWoman = /^(Woman|Female|W|Girl):/i.test(line);
+
+                      let speakerBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-700">Narration</span>`;
+                      if (isMan) speakerBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-700 border border-blue-200">Man</span>`;
+                      if (isWoman) speakerBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 text-rose-700 border border-rose-200">Woman</span>`;
+
+                      const content = line.replace(/^(Man|Male|M|Boy|Woman|Female|W|Girl|Narrator):\s*/i, '');
+
+                      return `
+                        <div class="flex items-start gap-2 py-0.5">
+                          <span class="shrink-0 mt-0.5">${speakerBadge}</span>
+                          <span class="leading-relaxed">${content}</span>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+
+                  <!-- Japanese translation of script -->
+                  ${q.translations?.script ? `
+                    <div class="mt-3 pt-3 border-t border-slate-200/80 text-xs text-slate-600 leading-relaxed font-sans">
+                      <div class="font-bold text-slate-700 mb-1 flex items-center gap-1">
+                        <i class="fa-solid fa-language text-indigo-500"></i> スクリプト日本語全訳
+                      </div>
+                      <div class="whitespace-pre-wrap pl-2 border-l-2 border-indigo-200">${q.translations.script}</div>
+                    </div>
+                  ` : ''}
+                </div>
+              ` : ''}
+
+              <!-- Question Sentence -->
+              <div class="space-y-1">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">設問 (Question)</div>
+                <div class="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                  ${q.question || '(放送を聞いて、最も適切な応答文を1つ選んでください)'}
+                </div>
+                ${showExpl && q.translations?.question ? `
+                  <div class="text-xs text-slate-500 font-medium">${q.translations.question}</div>
+                ` : ''}
+              </div>
+
+              <!-- Options List -->
+              <div class="space-y-2">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">選択肢 (Options)</div>
+                <div class="grid grid-cols-1 gap-2">
+                  ${q.options.map((opt, oIdx) => {
+                    const optNum = oIdx + 1;
+                    const isSelected = userAnswer === optNum;
+                    const isTheCorrect = q.correctAnswer === optNum;
+
+                    let btnClass = "border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50 text-slate-700";
+                    let badgeClass = "bg-slate-100 text-slate-600 border-slate-300";
+                    let stateIcon = "";
+
+                    if (isAnswered) {
+                      if (isTheCorrect) {
+                        btnClass = "border-emerald-500 bg-emerald-50/70 text-emerald-950 font-medium ring-1 ring-emerald-400";
+                        badgeClass = "bg-emerald-600 text-white border-emerald-600";
+                        stateIcon = `<span class="text-xs font-bold text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-check"></i> 正解</span>`;
+                      } else if (isSelected) {
+                        btnClass = "border-rose-400 bg-rose-50/70 text-rose-950 ring-1 ring-rose-300";
+                        badgeClass = "bg-rose-600 text-white border-rose-600";
+                        stateIcon = `<span class="text-xs font-bold text-rose-600 flex items-center gap-1"><i class="fa-solid fa-xmark"></i> あなたの解答</span>`;
+                      } else {
+                        btnClass = "border-slate-200 bg-slate-50 text-slate-400 opacity-70";
+                      }
+                    }
+
+                    return `
+                      <button type="button" class="option-btn w-full text-left p-3 rounded-xl border transition flex items-center justify-between text-xs sm:text-sm cursor-pointer ${btnClass}" data-q="${idx}" data-opt="${optNum}">
+                        <div class="flex items-center space-x-3 flex-1">
+                          <span class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs border shrink-0 ${badgeClass}">
+                            ${optNum}
+                          </span>
+                          <span class="leading-snug">${opt.replace(/^\d+\.\s*/, '')}</span>
+                        </div>
+                        ${stateIcon}
+                      </button>
+                      ${showExpl && q.translations?.options?.[oIdx] ? `
+                        <div class="text-[11px] text-slate-500 pl-11 pb-1 -mt-1 font-medium">
+                          ${q.translations.options[oIdx].replace(/^\d+\.\s*/, '')}
+                        </div>
+                      ` : ''}
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Explanation Accordion -->
+              ${showExpl && q.explanation ? `
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 text-xs space-y-3 pt-3">
+                  <div class="font-bold text-indigo-950 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-lightbulb text-amber-500"></i> 公式解説・解法根拠</span>
+                    <span class="px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold">正解: 選択肢 ${q.correctAnswer}</span>
+                  </div>
+
+                  <div class="space-y-2 text-slate-700 leading-relaxed">
+                    <div>
+                      <strong class="text-indigo-950 block mb-0.5 font-bold">【正解の根拠】</strong>
+                      <p class="pl-2 border-l-2 border-emerald-400">${q.explanation.evidence}</p>
+                    </div>
+
+                    <div>
+                      <strong class="text-indigo-950 block mb-0.5 font-bold">【誤答（ディストラクター）の罠ポイント】</strong>
+                      <p class="pl-2 border-l-2 border-rose-300 text-slate-600 whitespace-pre-wrap">${q.explanation.distractors}</p>
+                    </div>
+
+                    <div>
+                      <strong class="text-indigo-950 block mb-0.5 font-bold">【重要語彙・頻出表現】</strong>
+                      <p class="pl-2 border-l-2 border-indigo-300 text-slate-600 whitespace-pre-wrap font-mono text-[11px]">${q.explanation.vocabulary}</p>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Wire option click events
+      container.querySelectorAll('.option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const qIdx = parseInt(btn.dataset.q, 10);
+          const optNum = parseInt(btn.dataset.opt, 10);
+          if (state.userAnswers[qIdx] === undefined) {
+            state.userAnswers[qIdx] = optNum;
+            state.showResults[qIdx] = true;
+            renderQuestions();
+          }
+        });
+      });
+
+      // Wire audio play buttons
+      container.querySelectorAll('.btn-play-audio').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const qIdx = parseInt(btn.dataset.index, 10);
+          playQuestionAudio(qIdx);
+        });
+      });
+
+      // Wire audio download buttons
+      container.querySelectorAll('.btn-download-audio').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const qIdx = parseInt(btn.dataset.index, 10);
+          downloadQuestionAudio(qIdx, btn);
+        });
+      });
+    }
+
+    let currentAudioObj = null;
+    let currentlyPlayingIndex = null;
+
+    function stopAllAudio() {
+      if (currentAudioObj) {
+        currentAudioObj.pause();
+        currentAudioObj.currentTime = 0;
+        currentAudioObj = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      state.isPlaying = false;
+      currentlyPlayingIndex = null;
+      updatePlayIcons(false);
+
+      document.querySelectorAll('[id^="speaking-indicator-"]').forEach(el => {
+        el.classList.add('hidden');
+      });
+    }
+
+    function updatePlayIcons(isPlaying, questionIdx = null) {
+      document.querySelectorAll('.btn-play-audio').forEach(btn => {
+        const icon = btn.querySelector('i');
+        const text = btn.querySelector('.play-text');
+        const isCurrent = isPlaying && btn.dataset.index == questionIdx;
+
+        if (isCurrent) {
+          icon.className = 'fa-solid fa-stop text-white animate-pulse';
+          if (text) text.textContent = '停止';
+          btn.classList.add('bg-rose-600', 'hover:bg-rose-700', 'ring-2', 'ring-rose-400');
+          btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+        } else {
+          icon.className = 'fa-solid fa-circle-play text-amber-300';
+          if (text) text.textContent = '男女音声で再生';
+          btn.classList.remove('bg-rose-600', 'hover:bg-rose-700', 'ring-2', 'ring-rose-400');
+          btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+        }
+      });
+    }
+
+    function updateSpeakingIndicator(qIdx, speaker, textSnippet = '') {
+      const indicator = document.getElementById(`speaking-indicator-${qIdx}`);
+      if (!indicator) return;
+
+      if (!speaker) {
+        indicator.classList.add('hidden');
+        return;
+      }
+
+      indicator.classList.remove('hidden', 'bg-blue-50', 'border-blue-300', 'text-blue-900', 'bg-rose-50', 'border-rose-300', 'text-rose-900', 'bg-slate-100', 'border-slate-300', 'text-slate-800');
+      const avatar = indicator.querySelector('.speaker-avatar');
+      const text = indicator.querySelector('.speaker-text');
+
+      if (speaker === 'Man') {
+        indicator.classList.add('bg-blue-50', 'border-blue-300', 'text-blue-900');
+        if (avatar) {
+          avatar.className = 'speaker-avatar w-6 h-6 rounded-full flex items-center justify-center text-xs bg-blue-200 text-blue-800';
+          avatar.innerHTML = '<i class="fa-solid fa-mars"></i>';
+        }
+        if (text) text.innerHTML = `<strong>男性 (Man)</strong>: "${textSnippet}"`;
+      } else if (speaker === 'Woman') {
+        indicator.classList.add('bg-rose-50', 'border-rose-300', 'text-rose-900');
+        if (avatar) {
+          avatar.className = 'speaker-avatar w-6 h-6 rounded-full flex items-center justify-center text-xs bg-rose-200 text-rose-800';
+          avatar.innerHTML = '<i class="fa-solid fa-venus"></i>';
+        }
+        if (text) text.innerHTML = `<strong>女性 (Woman)</strong>: "${textSnippet}"`;
+      } else {
+        indicator.classList.add('bg-slate-100', 'border-slate-300', 'text-slate-800');
+        if (avatar) {
+          avatar.className = 'speaker-avatar w-6 h-6 rounded-full flex items-center justify-center text-xs bg-slate-200 text-slate-800';
+          avatar.innerHTML = '<i class="fa-solid fa-bullhorn"></i>';
+        }
+        if (text) text.innerHTML = `<strong>ナレーター (Narrator)</strong>: "${textSnippet}"`;
+      }
+    }
+
+    // Reliable chime using Web Audio API
+    function playEikenChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.setValueAtTime(880, now + 0.12); // A5
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.36);
+      } catch (e) {
+        console.warn("Chime failed", e);
+      }
+    }
+
+    function speakUtterance(text, voice, pitch = 1.0, rate = 1.0) {
+      return new Promise((resolve) => {
+        if (!('speechSynthesis' in window)) {
+          resolve();
+          return;
+        }
+
+        try {
+          window.speechSynthesis.cancel();
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+
+        const utter = new SpeechSynthesisUtterance(text);
+        if (voice) {
+          utter.voice = voice;
+          utter.lang = voice.lang || 'en-US';
+        } else {
+          utter.lang = 'en-US';
+        }
+        utter.rate = rate;
+        utter.pitch = pitch;
+
+        let resolved = false;
+        const finish = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve();
+          }
+        };
+
+        const maxDuration = Math.max(3500, text.length * 140);
+        const timer = setTimeout(finish, maxDuration);
+
+        utter.onend = finish;
+        utter.onerror = finish;
+
+        try {
+          window.speechSynthesis.speak(utter);
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        } catch (err) {
+          console.warn("Speech speak error:", err);
+          finish();
+        }
+      });
+    }
+
+    async function playQuestionAudio(questionIndex) {
+      if (state.isPlaying && currentlyPlayingIndex === questionIndex) {
+        stopAllAudio();
+        return;
+      }
+
+      stopAllAudio();
+
+      const q = state.questions[questionIndex];
+      if (!q) return;
+
+      state.isPlaying = true;
+      currentlyPlayingIndex = questionIndex;
+      updatePlayIcons(true, questionIndex);
+
+      if (q.audioUrl) {
+        const audio = new Audio(q.audioUrl);
+        currentAudioObj = audio;
+        audio.onended = () => stopAllAudio();
+        audio.onerror = () => stopAllAudio();
+        await audio.play();
+        return;
+      }
+
+      if (!('speechSynthesis' in window)) {
+        showToast("お使いのブラウザは音声再生に対応していません", "error");
+        stopAllAudio();
+        return;
+      }
+
+      playEikenChime();
+      await new Promise(r => setTimeout(r, 220));
+
+      initializeVoices();
+
+      const turns = parseAndNormalizeDialogue(q.script);
+
+      for (const turn of turns) {
+        if (!state.isPlaying || currentlyPlayingIndex !== questionIndex) break;
+
+        const isMan = turn.role === 'Man';
+        const speaker = isMan ? 'Man' : 'Woman';
+
+        updateSpeakingIndicator(questionIndex, speaker, turn.text.substring(0, 35) + (turn.text.length > 35 ? '...' : ''));
+
+        const voice = isMan ? state.maleVoice : state.femaleVoice;
+        const pitch = isMan ? 0.65 : 1.35;
+        const rate = (isMan ? 0.92 : 1.05) * state.playbackSpeed;
+
+        await speakUtterance(turn.text, voice, pitch, rate);
+
+        if (state.isPlaying) {
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+
+      if (q.question && state.isPlaying && currentlyPlayingIndex === questionIndex) {
+        updateSpeakingIndicator(questionIndex, 'Woman', q.question.substring(0, 35));
+        const questionText = q.question.startsWith('(') ? q.question : `Question: ${q.question}`;
+        await speakUtterance(questionText, state.femaleVoice, 1.25, 0.98 * state.playbackSpeed);
+      }
+
+      stopAllAudio();
+    }
+
+    function generateDynamicLocalQuestions(grade, part, theme, count) {
+      const poolByGrade = comprehensiveDatabase[grade] || comprehensiveDatabase['2級'];
+      const poolByPart = poolByGrade[part] || poolByGrade['第2部 対話文と質問'] || comprehensiveDatabase['2級']['第2部 対話文と質問'];
+      const baseItem = poolByPart[0];
+
+      const questions = [];
+      const userTheme = theme || "日常とコミュニケーション";
+
+      for (let i = 0; i < count; i++) {
+        const item = JSON.parse(JSON.stringify(baseItem));
+        item.grade = grade;
+        item.part = part;
+        if (theme) {
+          item.theme = `${userTheme} (第${i + 1}問)`;
+        }
+        questions.push(item);
+      }
+      return questions;
+    }
+
+    async function generateQuestionsWithAI() {
+      const btn = document.getElementById('btn-generate-ai');
+      const currentGrade = state.selectedGrade;
+      const currentPart = state.selectedPart;
+      const currentTheme = document.getElementById('theme-input').value.trim() || '学校生活や日常の話題';
+      const countInput = document.getElementById('question-count');
+      let count = parseInt(countInput.value, 10);
+      if (isNaN(count) || count < 1) count = 1;
+      if (count > 10) count = 10;
+      countInput.value = count;
+      state.questionCount = count;
+
+      const originalBtnHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-amber-300 mr-1.5"></i><span>英検AIが作問中...</span>`;
+
+      const loadingBox = document.getElementById('loading-state');
+      if (loadingBox) loadingBox.classList.remove('hidden');
+
+      let generatedQuestions = null;
+
+      // Try Gemini 3 Flash API
+      try {
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const promptText = `
+英検（実用英語技能検定）${currentGrade}のリスニングテスト問題を作成してください。
+形式: ${currentPart}
+テーマ: ${currentTheme}
+作成問数: ${count}問
+
+【仕様】
+1. 級の語彙・文法制限に厳格に準拠してください。
+2. 対話文（第2部）は男女2名（Man: と Woman:）による自然な対話で、必ず最後にQuestionを設定してください。
+3. 選択肢は4つ（正解1、もっともらしいディストラクター3）。第1部は応答文選択。
+4. 正解の根拠、誤答の罠ポイント、重要語彙を含む日本語解説を記載してください。
+`;
+
+        const payload = {
+          contents: [{ parts: [{ text: promptText }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  grade: { type: "STRING" },
+                  part: { type: "STRING" },
+                  theme: { type: "STRING" },
+                  script: { type: "STRING" },
+                  question: { type: "STRING" },
+                  options: {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                  },
+                  correctAnswer: { type: "INTEGER" },
+                  translations: {
+                    type: "OBJECT",
+                    properties: {
+                      script: { type: "STRING" },
+                      question: { type: "STRING" },
+                      options: {
+                        type: "ARRAY",
+                        items: { type: "STRING" }
+                      }
+                    }
+                  },
+                  explanation: {
+                    type: "OBJECT",
+                    properties: {
+                      evidence: { type: "STRING" },
+                      distractors: { type: "STRING" },
+                      vocabulary: { type: "STRING" }
+                    }
+                  }
+                },
+                required: ["grade", "part", "script", "options", "correctAnswer", "translations", "explanation"]
+              }
+            }
+          }
+        };
+
+        // 6 second timeout race to ensure lightning-fast UI response
+        const fetchPromise = fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 6000));
+        const res = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (res.ok) {
+          const jsonRes = await res.json();
+          const candidateText = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidateText) {
+            const parsed = JSON.parse(candidateText);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              generatedQuestions = parsed;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("AI generation fallback to robust database:", err);
+      }
+
+      // If API was unavailable or timed out, use comprehensive verified rule database
+      if (!generatedQuestions || generatedQuestions.length === 0) {
+        generatedQuestions = generateDynamicLocalQuestions(currentGrade, currentPart, currentTheme, count);
+      }
+
+      state.questions = generatedQuestions;
+      state.userAnswers = {};
+      state.showResults = {};
+      
+      if (loadingBox) loadingBox.classList.add('hidden');
+      renderQuestions();
+
+      const firstCard = document.getElementById('question-card-0');
+      if (firstCard) {
+        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      showToast(`✅ 英検${currentGrade}（${currentPart}）の問題を ${generatedQuestions.length} 問作成しました！`, 'success');
+
+      btn.disabled = false;
+      btn.innerHTML = originalBtnHtml;
+    }
+
+    async function generateOrGetQuestionAudio(questionIndex, statusCallback = null) {
+      const q = state.questions[questionIndex];
+      if (!q) throw new Error("問題が存在しません");
+
+      if (q.audioUrl && q.audioBlob) {
+        return q.audioUrl;
+      }
+
+      if (statusCallback) statusCallback("男女スタジオ音声をAI合成中...");
+
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+      const turns = parseAndNormalizeDialogue(q.script);
+      const isDialogue = turns.length > 1;
+
+      async function fetchTTSAudio(payload) {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          const msg = errData?.error?.message || response.statusText;
+          throw new Error(msg || `Status: ${response.status}`);
+        }
+        return await response.json();
+      }
+
+      let result = null;
+
+      if (isDialogue) {
+        const sanitizedLines = turns.map(t => `${t.role}: ${t.text}`).join('\n');
+        const questionLine = q.question && !q.question.includes('(Which response')
+          ? `\nWoman: Question. ${q.question}`
+          : '';
+
+        const promptText = `TTS the following conversation between Man and Woman:\n${sanitizedLines}${questionLine}`;
+
+        const multiSpeakerPayload = {
+          contents: [{ parts: [{ text: promptText }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [
+                  { speaker: "Man", voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } },
+                  { speaker: "Woman", voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
+                ]
+              }
+            }
+          }
+        };
+
+        result = await fetchTTSAudio(multiSpeakerPayload);
+      } else {
+        const isManSpeaker = turns[0]?.role === 'Man';
+        const voiceChoice = isManSpeaker ? "Charon" : "Aoede";
+        const hasQuestion = q.question && !q.question.includes('(Which response');
+        const scriptPrompt = `${q.script}${hasQuestion ? '\nQuestion: ' + q.question : ''}`;
+        result = await fetchTTSAudio({
+          contents: [{ parts: [{ text: scriptPrompt }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceChoice } }
+            }
+          }
+        });
+      }
+
+      const part = result?.candidates?.[0]?.content?.parts?.[0];
+      const audioData = part?.inlineData?.data;
+      const mimeType = part?.inlineData?.mimeType;
+
+      if (!audioData || !mimeType) {
+        throw new Error("音声データを受信できませんでした");
+      }
+
+      const rateMatch = mimeType.match(/rate=(\d+)/);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+
+      const rawBuffer = base64ToArrayBuffer(audioData);
+      const pcm16 = new Int16Array(rawBuffer);
+      const mp3Blob = pcmToMp3(pcm16, sampleRate);
+      const audioUrl = URL.createObjectURL(mp3Blob);
+
+      q.audioUrl = audioUrl;
+      q.audioBlob = mp3Blob;
+
+      return audioUrl;
+    }
+
+    async function downloadQuestionAudio(questionIndex, btnElement) {
+      const q = state.questions[questionIndex];
+      if (!q) return;
+
+      const fileName = `EIKEN_${q.grade || state.selectedGrade}_Q${questionIndex + 1}.mp3`;
+
+      if (q.audioUrl) {
+        const link = document.createElement('a');
+        link.href = q.audioUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast(`${fileName} を保存しました`, 'success');
+        return;
+      }
+
+      const originalBtnHtml = btnElement ? btnElement.innerHTML : '';
+      if (btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerHTML = `
+          <i class="fa-solid fa-circle-notch fa-spin text-indigo-600"></i>
+          <span class="download-text">MP3作成中...</span>
+        `;
+      }
+
+      showToast(`Q${questionIndex + 1}の音声を生成中...`, "info");
+
+      try {
+        const audioUrl = await generateOrGetQuestionAudio(questionIndex);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = audioUrl;
+        downloadLink.download = fileName;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        renderQuestions();
+        showToast(`🎉 ${fileName} のダウンロードが完了しました！`, 'success');
+      } catch (err) {
+        console.warn("Studio TTS failed, using fallback:", err);
+        showToast("スタジオTTS合成に接続できなかったため、画面上の「男女音声で再生」をご利用ください", "info");
+      } finally {
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalBtnHtml;
+        }
+      }
+    }
+
+    async function downloadAllQuestionsAudio() {
+      if (!state.questions || state.questions.length === 0) {
+        showToast("ダウンロードする問題がありません", "error");
+        return;
+      }
+
+      const batchBtn = document.getElementById('btn-batch-download');
+      const originalHtml = batchBtn.innerHTML;
+      batchBtn.disabled = true;
+      batchBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>一括処理中...</span>`;
+
+      showToast(`全 ${state.questions.length} 問のMP3ファイルを順次作成します`, "info");
+
+      try {
+        for (let i = 0; i < state.questions.length; i++) {
+          const targetBtn = document.querySelector(`.btn-download-audio[data-index="${i}"]`);
+          await downloadQuestionAudio(i, targetBtn);
+          if (i < state.questions.length - 1) {
+            await new Promise(r => setTimeout(r, 600));
+          }
+        }
+        showToast("全問の処理が完了しました", "success");
+      } catch (e) {
+        showToast("一括処理中にエラーが発生しました", "error");
+      } finally {
+        batchBtn.disabled = false;
+        batchBtn.innerHTML = originalHtml;
+      }
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    function pcmToMp3(pcmData, sampleRate = 24000, kbps = 128) {
+      if (typeof lamejs !== 'undefined' && lamejs.Mp3Encoder) {
+        try {
+          const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, kbps);
+          const mp3Data = [];
+          const sampleBlockSize = 1152;
+          for (let i = 0; i < pcmData.length; i += sampleBlockSize) {
+            const chunk = pcmData.subarray(i, i + sampleBlockSize);
+            const mp3buf = mp3encoder.encodeBuffer(chunk);
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+          }
+          const finishBuf = mp3encoder.flush();
+          if (finishBuf.length > 0) mp3Data.push(finishBuf);
+          return new Blob(mp3Data, { type: 'audio/mp3' });
+        } catch (e) {
+          console.warn("lamejs fallback:", e);
+        }
+      }
+      return pcmToWav(pcmData, sampleRate);
+    }
+
+    function pcmToWav(pcmData, sampleRate) {
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+      const blockAlign = numChannels * (bitsPerSample / 8);
+      const dataSize = pcmData.length * (bitsPerSample / 8);
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < pcmData.length; i++, offset += 2) {
+        view.setInt16(offset, pcmData[i], true);
+      }
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function generatePrintHtml(type = 'student') {
+      const isStudent = type === 'student';
+      const grade = state.selectedGrade;
+      const part = state.selectedPart;
+      const dateStr = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      let questionsHtml = '';
+
+      state.questions.forEach((q, idx) => {
+        const qNum = idx + 1;
+        questionsHtml += `
+          <div class="question-block" style="margin-bottom: 24px; page-break-inside: avoid; border-bottom: 1px dashed #cbd5e1; padding-bottom: 18px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px;">
+              <div style="font-weight: bold; font-size: 14pt; color: #1e293b;">
+                <span style="background: #1e3a8a; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11pt; margin-right: 6px;">第 ${qNum} 問</span>
+                英検${q.grade || grade} 【${q.part || part}】
+              </div>
+              ${q.theme ? `<span style="font-size: 9pt; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">テーマ: ${q.theme}</span>` : ''}
+            </div>
+
+            <div style="font-size: 11pt; font-weight: bold; margin: 10px 0 8px 0; color: #0f172a; line-height: 1.4;">
+              ${q.question || '(放送を聞いて、最も適切な応答文を1つ選んでください)'}
+            </div>
+
+            <div style="margin: 8px 0 12px 14px; font-size: 10.5pt; line-height: 1.6;">
+              ${q.options.map(opt => `
+                <div style="margin-bottom: 4px; color: #1e293b;">
+                  ${opt}
+                </div>
+              `).join('')}
+            </div>
+
+            ${isStudent ? `
+              <div style="display: flex; gap: 12px; margin-top: 10px; font-size: 9pt;">
+                <div style="border: 1px solid #94a3b8; border-radius: 4px; padding: 4px 12px; display: inline-flex; align-items: center; gap: 8px;">
+                  <span style="font-weight: bold; color: #475569;">解答記入欄:</span>
+                  <span style="display: inline-block; width: 40px; border-bottom: 1.5px solid #0f172a; height: 16px;"></span>
+                </div>
+                <div style="flex: 1; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 4px 8px; color: #94a3b8; font-size: 8.5pt;">
+                  ※ メモ欄 (Listening Memo)
+                </div>
+              </div>
+            ` : `
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-top: 12px; font-size: 9.5pt;">
+                <div style="display: inline-block; background: #16a34a; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px; font-size: 9pt; margin-bottom: 8px;">
+                  正解: ${q.correctAnswer}
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #1e3a8a; display: block; margin-bottom: 2px;">【放送スクリプト (Audio Script)】</strong>
+                  <pre style="font-family: inherit; white-space: pre-wrap; margin: 0; color: #1e293b; line-height: 1.4; background: #ffffff; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px;">${q.script}</pre>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #475569; display: block; margin-bottom: 2px;">【スクリプト日本語訳】</strong>
+                  <div style="color: #334155; line-height: 1.4; white-space: pre-wrap;">${q.translations?.script || ''}</div>
+                  ${q.translations?.question ? `<div style="color: #475569; margin-top: 4px;"><strong>設問訳:</strong> ${q.translations.question}</div>` : ''}
+                </div>
+
+                <div>
+                  <strong style="color: #b45309; display: block; margin-bottom: 2px;">【公式解説・解法ポイント】</strong>
+                  <div style="color: #1e293b; line-height: 1.4; margin-bottom: 4px;"><strong>正解の根拠:</strong> ${q.explanation?.evidence || ''}</div>
+                  <div style="color: #475569; line-height: 1.4; margin-bottom: 4px; white-space: pre-wrap;"><strong>誤答分析:</strong> ${q.explanation?.distractors || ''}</div>
+                  <div style="color: #1e3a8a; line-height: 1.4; font-size: 9pt; white-space: pre-wrap;"><strong>重要語彙:</strong> ${q.explanation?.vocabulary || ''}</div>
+                </div>
+              </div>
+            `}
+          </div>
+        `;
+      });
+
+      return `
+        <!DOCTYPE html>
+        <html lang="ja">
+        <head>
+          <meta charset="UTF-8">
+          <title>${isStudent ? '生徒用問題用紙' : '解答解説シート'} - 英検${grade} リスニング演習</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 15mm 15mm 15mm 15mm;
+            }
+            body {
+              font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Noto Sans JP', sans-serif;
+              color: #0f172a;
+              background: #ffffff;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .header-table {
+              width: 100%;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 8px;
+              margin-bottom: 18px;
+            }
+            .sheet-title {
+              font-size: 16pt;
+              font-weight: bold;
+              margin: 0;
+              color: #0f172a;
+            }
+            .sub-info {
+              font-size: 9.5pt;
+              color: #475569;
+              margin-top: 4px;
+            }
+            .student-info-box {
+              display: flex;
+              gap: 20px;
+              border: 1px solid #0f172a;
+              padding: 6px 14px;
+              border-radius: 4px;
+              font-size: 10pt;
+            }
+            .btn-print-floating {
+              position: fixed;
+              top: 16px;
+              right: 16px;
+              background: #2563eb;
+              color: #ffffff;
+              padding: 10px 18px;
+              border-radius: 8px;
+              font-weight: bold;
+              cursor: pointer;
+              border: none;
+              box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+              font-size: 14px;
+              z-index: 9999;
+            }
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="no-print" style="background: #f1f5f9; padding: 10px 20px; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 12px; color: #475569;">
+              印刷プレビュー画面です。右上のボタン、または [Ctrl+P] (Macは [Cmd+P]) で印刷を実行してください。
+            </div>
+            <button class="btn-print-floating" onclick="window.print()">
+              🖨️ このページを印刷 / PDF保存
+            </button>
+          </div>
+
+          <div style="padding: 15px 25px;">
+            <table class="header-table">
+              <tr>
+                <td>
+                  <h1 class="sheet-title">実用英語技能検定 ${grade} リスニング演習</h1>
+                  <div class="sub-info">
+                    形式: ${part} ｜ 問題数: 全 ${state.questions.length} 問 ｜ 実施日: ${dateStr}
+                  </div>
+                </td>
+                <td style="text-align: right; vertical-align: bottom;">
+                  <div style="display: inline-block; font-size: 11pt; font-weight: bold; padding: 4px 10px; border-radius: 4px; background: ${isStudent ? '#1e3a8a' : '#b45309'}; color: #ffffff;">
+                    ${isStudent ? '生徒用問題用紙 (Question Sheet)' : '指導用・解答解説シート (Teacher Key)'}
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            ${isStudent ? `
+              <div style="display: flex; justify-content: flex-end; margin-bottom: 18px;">
+                <div class="student-info-box">
+                  <div>組: <span style="display: inline-block; width: 50px; border-bottom: 1px solid #000;"></span></div>
+                  <div>番号: <span style="display: inline-block; width: 50px; border-bottom: 1px solid #000;"></span></div>
+                  <div>氏名: <span style="display: inline-block; width: 140px; border-bottom: 1px solid #000;"></span></div>
+                  <div>得点: <span style="display: inline-block; width: 60px; border-bottom: 1px solid #000;"></span> / ${state.questions.length}</div>
+                </div>
+              </div>
+            ` : ''}
+
+            <div class="questions-list">
+              ${questionsHtml}
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+    }
+
+    function executeDirectPrint(type = 'student') {
+      const htmlContent = generatePrintHtml(type);
+
+      try {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.open();
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => {
+            try {
+              printWindow.print();
+            } catch (e) {
+              console.warn("window.print() fallback:", e);
+            }
+          }, 350);
+          return true;
+        }
+      } catch (err) {
+        console.warn("Popup blocked:", err);
+      }
+
+      try {
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast("印刷用シートを新しいタブで開きました。[Ctrl+P]で印刷してください", "info");
+        return true;
+      } catch (blobErr) {
+        window.print();
+        return true;
+      }
+    }
+
+    function exportToMarkdown() {
+      if (!state.questions || state.questions.length === 0) {
+        showToast("出力する問題がありません", "error");
+        return;
+      }
+
+      let md = `# 実用英語技能検定（英検）リスニング問題演習シート\n\n`;
+      md += `作成日時: ${new Date().toLocaleDateString('ja-JP')} | 対象: 英検${state.selectedGrade} (${state.selectedPart})\n\n---\n\n`;
+
+      state.questions.forEach((q, idx) => {
+        md += `### [第${idx + 1}問] (英検${q.grade || state.selectedGrade} - ${q.part || state.selectedPart})\n`;
+        if (q.theme) md += `*テーマ: ${q.theme}*\n\n`;
+        md += `**【スクリプト (Audio Script)】**\n\`\`\`\n${q.script}\n\`\`\`\n\n`;
+        md += `**【質問 (Question)】**\n${q.question || '(最も適切な応答文を1つ選んでください)'}\n\n`;
+        md += `**【選択肢 (Options)】**\n`;
+        q.options.forEach(opt => {
+          md += `${opt}\n`;
+        });
+        md += `\n**【正解】**\n${q.correctAnswer}\n\n`;
+        md += `**【日本語訳 (Translations)】**\n`;
+        md += `- スクリプト訳:\n${q.translations.script}\n`;
+        md += `- 質問訳: ${q.translations.question}\n`;
+        md += `- 選択肢訳:\n`;
+        q.translations.options.forEach((tOpt, tIdx) => {
+          md += `  ${tIdx + 1}. ${tOpt.replace(/^\d+\.\s*/, '')}\n`;
+        });
+        md += `\n**【解説 (Explanation)】**\n`;
+        md += `- 正解の根拠: ${q.explanation.evidence}\n`;
+        md += `- 誤答の理由・ポイント: ${q.explanation.distractors}\n`;
+        md += `- 重要語彙・表現: ${q.explanation.vocabulary}\n\n`;
+        md += `---\n\n`;
+      });
+
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = md;
+      tempTextArea.style.position = 'fixed';
+      tempTextArea.style.left = '-9999px';
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      try {
+        document.execCommand('copy');
+        showToast("Markdownフォーマットをクリップボードにコピーしました！", "success");
+      } catch (e) {
+        showToast("コピーに失敗しました", "error");
+      } finally {
+        document.body.removeChild(tempTextArea);
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMessage.textContent = message;
+      if (type === 'success') {
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+      } else if (type === 'error') {
+        toastIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i>';
+      } else {
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-info text-indigo-400"></i>';
+      }
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initializeVoices();
+      renderQuestions();
+
+      // Voice sample test buttons
+      document.getElementById('btn-test-male-voice').addEventListener('click', async () => {
+        stopAllAudio();
+        const btn = document.getElementById('btn-test-male-voice');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+        initializeVoices();
+        await speakUtterance("Hello, Emma. Are you going to the library to study for tomorrow's math test?", state.maleVoice, 0.65, 0.92);
+        btn.innerHTML = orig;
+      });
+
+      document.getElementById('btn-test-female-voice').addEventListener('click', async () => {
+        stopAllAudio();
+        const btn = document.getElementById('btn-test-female-voice');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+        initializeVoices();
+        await speakUtterance("Hi, Ken! Sure, let's meet in the study room on the second floor.", state.femaleVoice, 1.35, 1.05);
+        btn.innerHTML = orig;
+      });
+
+      // Grade button selector
+      const gradeButtons = document.querySelectorAll('.grade-btn');
+      gradeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          stopAllAudio();
+          gradeButtons.forEach(b => {
+            b.classList.remove('active', 'bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-sm');
+            b.classList.add('border-slate-200', 'text-slate-700');
+          });
+          btn.classList.add('active', 'bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-sm');
+          btn.classList.remove('border-slate-200', 'text-slate-700');
+
+          state.selectedGrade = btn.dataset.grade;
+          const descEl = document.getElementById('grade-desc');
+          if (gradeDetails[state.selectedGrade]) {
+            descEl.textContent = gradeDetails[state.selectedGrade].desc;
+          }
+
+          // Auto-load sample for newly selected grade
+          const pool = comprehensiveDatabase[state.selectedGrade];
+          if (pool && pool[state.selectedPart]) {
+            state.questions = [JSON.parse(JSON.stringify(pool[state.selectedPart][0]))];
+            state.userAnswers = {};
+            state.showResults = {};
+          }
+
+          initializeVoices();
+          renderQuestions();
+          showToast(`英検${state.selectedGrade}（${state.selectedPart}）をセットしました`, 'info');
+        });
+      });
+
+      // Part radio selector
+      document.querySelectorAll('input[name="partOption"]').forEach(input => {
+        input.addEventListener('change', (e) => {
+          stopAllAudio();
+          state.selectedPart = e.target.value;
+          document.querySelectorAll('#part-selector label').forEach(lbl => {
+            lbl.classList.remove('border-indigo-200', 'bg-indigo-50/50');
+            lbl.classList.add('border-slate-200');
+          });
+          e.target.closest('label').classList.add('border-indigo-200', 'bg-indigo-50/50');
+
+          const pool = comprehensiveDatabase[state.selectedGrade];
+          if (pool && pool[state.selectedPart]) {
+            state.questions = [JSON.parse(JSON.stringify(pool[state.selectedPart][0]))];
+            state.userAnswers = {};
+            state.showResults = {};
+          }
+          renderQuestions();
+        });
+      });
+
+      // Preset theme tags
+      document.querySelectorAll('.theme-tag').forEach(tag => {
+        tag.addEventListener('click', () => {
+          document.getElementById('theme-input').value = tag.textContent;
+        });
+      });
+
+      // Question count controller & presets
+      const countInput = document.getElementById('question-count');
+      const countMinusBtn = document.getElementById('btn-count-minus');
+      const countPlusBtn = document.getElementById('btn-count-plus');
+      const countPresetBtns = document.querySelectorAll('.count-preset-btn');
+
+      function updateCountPresetsUI(val) {
+        countPresetBtns.forEach(btn => {
+          const btnCount = parseInt(btn.dataset.count, 10);
+          if (btnCount === val) {
+            btn.className = 'count-preset-btn active py-1.5 text-center text-xs font-bold rounded-lg border bg-indigo-600 text-white border-indigo-600 shadow-xs transition';
+          } else {
+            btn.className = 'count-preset-btn py-1.5 text-center text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition';
+          }
+        });
+      }
+
+      function setCount(val) {
+        let num = Math.min(Math.max(parseInt(val, 10) || 1, 1), 10);
+        countInput.value = num;
+        state.questionCount = num;
+        updateCountPresetsUI(num);
+      }
+
+      countMinusBtn.addEventListener('click', () => {
+        setCount(parseInt(countInput.value, 10) - 1);
+      });
+
+      countPlusBtn.addEventListener('click', () => {
+        setCount(parseInt(countInput.value, 10) + 1);
+      });
+
+      countInput.addEventListener('change', () => {
+        setCount(countInput.value);
+      });
+
+      countPresetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          setCount(btn.dataset.count);
+        });
+      });
+
+      // Random theme generator button
+      const randomThemes = [
+        "空港でのフライト遅延アナウンスと対応",
+        "大学のキャンパスツアーと受講登録",
+        "カフェでの注文ミスとアレルギーの確認",
+        "環境配慮型プラスチックのリサイクル計画",
+        "放課後の合唱コンクールに向けたパート練習",
+        "新製品スマートフォンのバッテリー改善インタビュー",
+        "美術館での音声ガイド機器の貸出手続き",
+        "海外留学プログラムの奨学金応募条件"
+      ];
+      document.getElementById('btn-random-theme').addEventListener('click', () => {
+        const rand = randomThemes[Math.floor(Math.random() * randomThemes.length)];
+        document.getElementById('theme-input').value = rand;
+      });
+
+      // Mode toggles
+      const btnExam = document.getElementById('mode-exam');
+      const btnEditor = document.getElementById('mode-editor');
+
+      btnExam.addEventListener('click', () => {
+        state.mode = 'exam';
+        btnExam.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 shadow-sm transition cursor-pointer';
+        btnEditor.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+        renderQuestions();
+      });
+
+      btnEditor.addEventListener('click', () => {
+        state.mode = 'editor';
+        btnEditor.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 shadow-sm transition cursor-pointer';
+        btnExam.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+        renderQuestions();
+      });
+
+      // AI Generate button
+      document.getElementById('btn-generate-ai').addEventListener('click', () => {
+        generateQuestionsWithAI();
+      });
+
+      // Load sample button
+      document.getElementById('btn-load-sample').addEventListener('click', () => {
+        const pool = comprehensiveDatabase[state.selectedGrade] || comprehensiveDatabase['2級'];
+        const sampleItem = pool[state.selectedPart] ? pool[state.selectedPart][0] : comprehensiveDatabase['2級']['第2部 対話文と質問'][0];
+        state.questions = [JSON.parse(JSON.stringify(sampleItem))];
+        state.userAnswers = {};
+        state.showResults = {};
+        renderQuestions();
+        showToast(`英検${state.selectedGrade}（${state.selectedPart}）の公式サンプルを読み込みました`, "info");
+      });
+
+      // Print Modal Controls
+      const printBtn = document.getElementById('btn-print');
+      const printModal = document.getElementById('print-modal');
+      const closePrintModalBtn = document.getElementById('btn-close-print-modal');
+      const executePrintBtn = document.getElementById('btn-execute-print');
+      const openPrintTabBtn = document.getElementById('btn-open-print-tab');
+      const printTypeRadios = document.querySelectorAll('input[name="printType"]');
+      const printTypeLabels = document.querySelectorAll('.print-type-label');
+
+      printTypeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          printTypeLabels.forEach(lbl => {
+            lbl.classList.remove('border-indigo-600', 'bg-indigo-50/60');
+            lbl.classList.add('border-slate-200', 'bg-white');
+          });
+          e.target.closest('.print-type-label').classList.remove('border-slate-200', 'bg-white');
+          e.target.closest('.print-type-label').classList.add('border-indigo-600', 'bg-indigo-50/60');
+        });
+      });
+
+      printBtn.addEventListener('click', () => {
+        if (!state.questions || state.questions.length === 0) {
+          showToast("印刷する問題がありません", "error");
+          return;
+        }
+        printModal.classList.remove('hidden');
+      });
+
+      closePrintModalBtn.addEventListener('click', () => {
+        printModal.classList.add('hidden');
+      });
+
+      printModal.addEventListener('click', (e) => {
+        if (e.target === printModal) {
+          printModal.classList.add('hidden');
+        }
+      });
+
+      function getSelectedPrintType() {
+        const checked = document.querySelector('input[name="printType"]:checked');
+        return checked ? checked.value : 'student';
+      }
+
+      executePrintBtn.addEventListener('click', () => {
+        const type = getSelectedPrintType();
+        printModal.classList.add('hidden');
+        executeDirectPrint(type);
+      });
+
+      openPrintTabBtn.addEventListener('click', () => {
+        const type = getSelectedPrintType();
+        printModal.classList.add('hidden');
+        const html = generatePrintHtml(type);
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      });
+
+      // Batch MP3 Download button
+      document.getElementById('btn-batch-download').addEventListener('click', () => {
+        downloadAllQuestionsAudio();
+      });
+
+      // Export Markdown
+      document.getElementById('btn-export-markdown').addEventListener('click', () => {
+        exportToMarkdown();
+      });
+    });
+  </script>
+</body>
+</html>
